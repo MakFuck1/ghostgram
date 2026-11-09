@@ -17,13 +17,13 @@ import GGNickBadgeSlot
 // - When: `GGForegroundTaskScheduler` (at most every 5 minutes on returning to the app), when the
 //   user turns badges on, and — after the user went to the bot to buy one — at once on returning
 //   and again 45 s later (a payment is not always confirmed instantly), only in the foreground.
-// - On by default (owner's call, 2026-10-28). Off: no requests, nothing drawn, the table is
-//   dropped from memory.
+// - Off by default (fork build, 2026-11-09): the app talks to no server but Telegram. Off: no
+//   requests, nothing drawn, the table is dropped from memory. The user may still turn it on.
 // - A change reaches every place without a settings write: badge views refresh in place
 //   (`GGNickBadgeSlot.refreshVisibleSlots`), bubbles through `GGMessageDecorationHooks.redrawAll()`.
 
 enum GGNickBadgeSettings {
-    static let isEnabled = GGSetting<Bool>("nickBadge.isEnabled", default: true)
+    static let isEnabled = GGSetting<Bool>("nickBadge.isEnabled", default: false)
 
     static func declare() {
         let _ = GGNickBadgeSettings.isEnabled
@@ -278,6 +278,9 @@ final class GGNickBadgeService {
 
     /// Bot and prices, at most every 5 minutes; only when the badge screen is open.
     func serverConfig() -> Signal<GGNickBadgeServerConfig?, NoError> {
+        guard GGNickBadgeSettings.isEnabled.value else {
+            return .single(nil)
+        }
         return Signal { [self] subscriber in
             assert(Thread.isMainThread)
             if let cached = self.cachedServerConfig, CFAbsoluteTimeGetCurrent() - cached.time < GGNickBadgeService.syncInterval {
